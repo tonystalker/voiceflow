@@ -61,18 +61,18 @@ def build_graph() -> StateGraph:
     builder = StateGraph(ConversationState)
 
     # ── Add nodes ─────────────────────────────────────────────────────────
-    builder.add_node("intent", intent_classification_node)
+    builder.add_node("classify", intent_classification_node)  # renamed: 'intent' conflicts with state key
     builder.add_node("rag", rag_retrieval_node)
     builder.add_node("tool", tool_calling_node)
     builder.add_node("generate", response_generation_node)
     builder.add_node("fallback", fallback_node)
 
     # ── Entry point ───────────────────────────────────────────────────────
-    builder.set_entry_point("intent")
+    builder.set_entry_point("classify")
 
     # ── Edges ─────────────────────────────────────────────────────────────
     builder.add_conditional_edges(
-        "intent",
+        "classify",
         _route_intent,
         {"rag": "rag", "tool": "tool", "fallback": "fallback"},
     )
