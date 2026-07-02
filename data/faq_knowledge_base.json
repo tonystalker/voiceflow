@@ -1,0 +1,102 @@
+[
+  {
+    "id": "faq_001",
+    "question": "How do I reset my online banking password?",
+    "answer": "You can reset your password by visiting our website and clicking 'Forgot Password' on the login page. Enter your registered email address and we'll send you a reset link within 2 minutes. If you don't receive it, check your spam folder or call us for assistance."
+  },
+  {
+    "id": "faq_002",
+    "question": "What should I do if my debit card is lost or stolen?",
+    "answer": "Please report a lost or stolen card immediately by calling our 24/7 hotline or using the mobile app. Go to Cards, select your card, and tap 'Block Card'. We'll issue a replacement card within 3 to 5 business days at no charge for your first replacement."
+  },
+  {
+    "id": "faq_003",
+    "question": "How long does an international wire transfer take?",
+    "answer": "International wire transfers typically take 1 to 3 business days depending on the destination country and the recipient's bank. Transfers to SEPA countries usually arrive next business day. You'll receive an SMS and email confirmation once the transfer is processed."
+  },
+  {
+    "id": "faq_004",
+    "question": "What are the daily transaction limits on my account?",
+    "answer": "Standard accounts have a daily ATM withdrawal limit of 500 dollars and a daily debit card spend limit of 2000 dollars. Premium account holders have limits of 1000 and 5000 dollars respectively. You can request a temporary limit increase through the mobile app or by calling us."
+  },
+  {
+    "id": "faq_005",
+    "question": "How do I dispute an unauthorized transaction on my account?",
+    "answer": "To dispute a transaction, log in to your account, find the transaction in your statement, and tap 'Dispute this charge'. Alternatively, call us within 60 days of the transaction date. We'll provisionally credit your account within 10 business days while we investigate."
+  },
+  {
+    "id": "faq_006",
+    "question": "What documents do I need to complete KYC verification?",
+    "answer": "To complete identity verification you'll need a government-issued photo ID such as a passport or driver's license, proof of address dated within the last 3 months such as a utility bill or bank statement, and a selfie taken through our app. The process takes about 5 minutes and verification is usually complete within 24 hours."
+  },
+  {
+    "id": "faq_007",
+    "question": "How do I set up or change my account PIN?",
+    "answer": "You can set or change your PIN through the mobile app under Cards, then select your card and choose 'Manage PIN'. You can also visit any of our ATMs and use the PIN management option in the main menu. Never share your PIN with anyone, including bank staff."
+  },
+  {
+    "id": "faq_008",
+    "question": "What is the interest rate on your savings account?",
+    "answer": "Our standard savings account currently offers a 4.5% annual interest rate, paid monthly. Our premium savings account offers 5.2% for balances above 10,000 dollars. Interest rates are variable and reviewed quarterly in line with central bank rates."
+  },
+  {
+    "id": "faq_009",
+    "question": "Can I open a joint account with someone else?",
+    "answer": "Yes, you can open a joint account with up to 2 additional account holders. Both parties must complete individual KYC verification. You can initiate a joint account application online or at any branch. All account holders will have equal access and transaction rights by default."
+  },
+  {
+    "id": "faq_010",
+    "question": "How do I enable or disable international card payments?",
+    "answer": "You can toggle international card payments on or off in the mobile app under Cards, then Card Controls, then International Payments. Changes take effect immediately. We recommend disabling international payments when you're not travelling to reduce fraud risk."
+  },
+  {
+    "id": "faq_011",
+    "question": "What happens if my account goes into a negative balance?",
+    "answer": "If your account balance goes below zero, an overdraft fee of 35 dollars is charged per occurrence. We offer an overdraft protection service that links your savings account as a backup, which you can enable in the app under Account Settings. Overdraft protection transfers carry no fee."
+  },
+  {
+    "id": "faq_012",
+    "question": "How do I close my account?",
+    "answer": "To close your account, please ensure your balance is zero and all pending transactions are settled. Then visit any branch with a valid ID, or send a written request by certified mail to our customer service address. Account closure is processed within 5 to 10 business days."
+  },
+  {
+    "id": "faq_013",
+    "question": "What is your bank's SWIFT code for international transfers?",
+    "answer": "Our SWIFT code is VFLOXXXXX. You'll also need to provide your full account number, the receiving bank's SWIFT or BIC code, and the recipient's full name and address for international wire transfers. All this information is available under Account Details in the app."
+  },
+  {
+    "id": "faq_014",
+    "question": "How do I set up recurring payments or standing orders?",
+    "answer": "To set up a standing order, go to Payments in the app, then select Standing Orders and tap New Standing Order. Enter the recipient details, amount, frequency, and start date. Standing orders are processed at 6 AM on the scheduled date. You can cancel or edit them at any time."
+  },
+  {
+    "id": "faq_015",
+    "question": "Is my money protected or insured?",
+    "answer": "Yes, deposits up to 250,000 dollars per depositor are protected by federal deposit insurance. This means your money is safe even if the bank experiences financial difficulties. For amounts above this threshold, please speak with one of our advisors about additional protection options."
+  },
+  {
+    "id": "faq_016",
+    "question": "How do I get a bank statement for a visa application?",
+    "answer": "You can download an official bank statement in PDF format directly from the mobile app or web portal under Statements. Select the date range you need and download. For an officially stamped physical statement, visit any branch and allow 1 to 2 business days. There is no charge for this service."
+  },
+  {
+    "id": "faq_017",
+    "question": "What should I do if I suspect fraud on my account?",
+    "answer": "If you suspect fraud, call our 24/7 fraud hotline immediately. We will temporarily freeze your account to prevent further unauthorized access, investigate the suspicious activity, and issue new account credentials. Never respond to emails or texts asking for your account details or OTPs."
+  },
+  {
+    "id": "faq_018",
+    "question": "How do I apply for a personal loan or credit card?",
+    "answer": "You can apply for a personal loan or credit card through our mobile app under Products, then Apply Now. The application takes about 10 minutes. You'll need proof of income for the last 3 months. Most applications receive a decision within 24 hours and funds are disbursed within 2 business days upon approval."
+  },
+  {
+    "id": "faq_019",
+    "question": "What are your branch and customer support hours?",
+    "answer": "Our branches are open Monday through Friday from 9 AM to 5 PM, and Saturday from 10 AM to 2 PM. Our phone and chat support is available 24 hours a day, 7 days a week for urgent issues like card blocking. Standard queries are handled Monday through Friday from 8 AM to 8 PM."
+  },
+  {
+    "id": "faq_020",
+    "question": "How do I update my registered phone number or email address?",
+    "answer": "To update your contact details, go to Profile in the app and tap Contact Information. You'll be asked to verify your identity with your current registered number before making changes. Alternatively, visit a branch with a valid photo ID. Updates take effect immediately for digital communications."
+  }
+]

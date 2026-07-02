@@ -1,0 +1,10 @@
+voiceflow_qdrant/
+qdrant_data/
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+logs/
+*.log
+.DS_Store
