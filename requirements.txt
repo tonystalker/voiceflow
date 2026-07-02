@@ -28,7 +28,7 @@ sentence-transformers==3.0.1
 sounddevice==0.4.7
 soundfile==0.12.1
 numpy==1.26.4
-audioop-lts==0.2.1   # μ-law codec (Python 3.13+); ignored on older Python
+# audioop is built into Python stdlib on 3.9–3.12; audioop-lts only needed on 3.13+
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
 streamlit==1.35.0
