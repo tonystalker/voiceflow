@@ -17,7 +17,7 @@ from sentence_transformers import SentenceTransformer
 from app.config import settings
 
 _EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-_FALLBACK_THRESHOLD = 0.50
+_FALLBACK_THRESHOLD = 0.30   # lowered: minor transcription errors drop scores
 
 
 class RAGRetriever:

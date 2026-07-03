@@ -134,7 +134,10 @@ def response_generation_node(state: ConversationState) -> Dict[str, Any]:
     # Build context block
     context_block = ""
     if state.get("retrieved_context"):
-        snippets = [c["text"] for c in state["retrieved_context"] if not c.get("low_confidence")]
+        # Include all chunks — let the LLM decide if context is relevant.
+        # Filtering by low_confidence here causes unnecessary fallbacks on
+        # minor transcription errors (e.g. 'backing' vs 'banking').
+        snippets = [c["text"] for c in state["retrieved_context"] if c.get("text")]
         if snippets:
             context_block = "\n\nRelevant information:\n" + "\n".join(f"- {s}" for s in snippets)
 
