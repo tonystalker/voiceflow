@@ -40,13 +40,15 @@ _llm = ChatGroq(
 )
 
 # ── System prompt ──────────────────────────────────────────────────────────
-_SYSTEM_PROMPT = """You are Aria, a friendly and professional AI banking assistant for VoiceBank.
-You are speaking to a customer over the phone, so:
-- Keep responses under 3 sentences.
-- Use natural spoken language — no bullet points, no markdown.
-- Be warm but efficient.
-- Never make up account numbers, balances, or policy details not given to you.
-- If you're unsure, say so honestly and offer to connect the caller to a human agent.
+_SYSTEM_PROMPT = """You are Aria, a friendly AI banking assistant for VoiceBank speaking over the phone.
+
+STRICT RULES:
+1. Keep every response to 2-3 SHORT sentences maximum. You are on a phone call.
+2. Use natural spoken language. No bullet points, no markdown, no lists.
+3. If "Relevant information" is provided below, use it DIRECTLY to answer — do not make up alternative steps.
+4. If no relevant information is provided or you are unsure, say: "Let me connect you with a specialist who can help with that."
+5. Never ask for account IDs unless the customer's question is specifically about their account balance or transactions.
+6. Never invent policy details, fees, or procedures not given to you.
 """
 
 
@@ -57,9 +59,14 @@ def intent_classification_node(state: ConversationState) -> Dict[str, Any]:
 
     # Fast rule-based pre-check to save LLM call
     lower = transcript.lower()
-    if re.search(r"\bacc[-\s]?\d{4}\b", lower):
+    
+    # Check for "account" followed closely by 4 digits (e.g. "account is 1001", "account one zero zero one" converted to digits)
+    has_acc = re.search(r"(?:acc|account).*?(\d{4})", lower)
+    has_dis = re.search(r"(?:dis|dispute).*?(\d{4})", lower)
+    
+    if has_acc:
         intent = "account_query"
-    elif re.search(r"\bdis[-\s]?\d{4}\b", lower):
+    elif has_dis:
         intent = "dispute_query"
     elif any(w in lower for w in ["human", "agent", "representative", "person", "speak to someone"]):
         intent = "escalate"
@@ -100,8 +107,8 @@ def tool_calling_node(state: ConversationState) -> Dict[str, Any]:
     transcript = state["transcript_final"]
 
     # Extract account ID
-    acc_match = re.search(r"\bacc[-\s]?(\d{4})\b", transcript, re.IGNORECASE)
-    dis_match = re.search(r"\bdis[-\s]?(\d{4})\b", transcript, re.IGNORECASE)
+    acc_match = re.search(r"(?:acc|account).*?(\d{4})", transcript, re.IGNORECASE)
+    dis_match = re.search(r"(?:dis|dispute).*?(\d{4})", transcript, re.IGNORECASE)
 
     if acc_match:
         account_id = f"ACC-{acc_match.group(1)}"

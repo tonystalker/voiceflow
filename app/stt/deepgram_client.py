@@ -1,10 +1,10 @@
 """
 app/stt/deepgram_client.py
 
-Wraps Deepgram's LiveTranscription WebSocket.
+Wraps Deepgram's LiveTranscription WebSocket (SDK v2 — Python 3.9 compatible).
 Accepts raw μ-law (8 kHz, mono) bytes from Twilio and fires callbacks:
-  • on_partial(text)  — interim results   → feed to barge-in handler
-  • on_final(text)    — committed transcript → trigger LangGraph turn
+  • on_partial(text)             — interim results → feed to barge-in handler
+  • on_final(text, latency_ms)  — committed transcript → trigger LangGraph turn
 """
 
 from __future__ import annotations
@@ -13,12 +13,7 @@ import asyncio
 import time
 from typing import Callable, Optional
 
-from deepgram import (
-    DeepgramClient,
-    DeepgramClientOptions,
-    LiveOptions,
-    LiveTranscriptionEvents,
-)
+from deepgram import Deepgram
 from loguru import logger
 
 from app.config import settings
@@ -34,31 +29,30 @@ class DeepgramSTTClient:
         self._on_final = on_final
         self._connection = None
         self._start_time: Optional[float] = None
-
-        cfg = DeepgramClientOptions(options={"keepalive": "true"})
-        self._client = DeepgramClient(settings.deepgram_api_key, cfg)
+        self._dg = Deepgram(settings.deepgram_api_key)
 
     async def connect(self) -> None:
         """Open a live transcription session."""
-        options = LiveOptions(
-            model="nova-2",
-            language="en-US",
-            encoding="mulaw",
-            sample_rate=8000,
-            channels=1,
-            interim_results=True,
-            utterance_end_ms="1000",
-            vad_events=True,
-            smart_format=True,
+        options = {
+            "model": "nova-2",
+            "language": "en-US",
+            "encoding": "mulaw",
+            "sample_rate": 8000,
+            "channels": 1,
+            "interim_results": True,
+            "smart_format": True,
+        }
+
+        self._connection = await self._dg.transcription.live(options)
+
+        self._connection.registerHandler(
+            self._connection.event.TRANSCRIPT_RECEIVED,
+            self._on_transcript,
         )
-
-        self._connection = self._client.listen.asynclive.v("1")
-
-        self._connection.on(LiveTranscriptionEvents.Transcript, self._on_transcript)
-        self._connection.on(LiveTranscriptionEvents.Error, self._on_error)
-        self._connection.on(LiveTranscriptionEvents.Close, self._on_close)
-
-        await self._connection.start(options)
+        self._connection.registerHandler(
+            self._connection.event.CLOSE,
+            lambda code: logger.info(f"Deepgram connection closed (code={code})"),
+        )
         logger.info("Deepgram STT connection opened")
 
     async def send_audio(self, chunk: bytes) -> None:
@@ -66,7 +60,7 @@ class DeepgramSTTClient:
         if self._connection:
             if self._start_time is None:
                 self._start_time = time.monotonic()
-            await self._connection.send(chunk)
+            self._connection.send(chunk)
 
     async def finish(self) -> None:
         """Signal end of stream and close connection."""
@@ -74,18 +68,20 @@ class DeepgramSTTClient:
             await self._connection.finish()
             self._connection = None
             self._start_time = None
-            logger.info("Deepgram STT connection closed")
+            logger.info("Deepgram STT connection finished")
 
-    # ── Private callbacks ─────────────────────────────────────────────────
+    # ── Private transcript handler ────────────────────────────────────────
 
-    def _on_transcript(self, _self, result, **kwargs) -> None:
+    def _on_transcript(self, msg: dict) -> None:
         try:
-            alt = result.channel.alternatives[0]
-            text = alt.transcript.strip()
+            alt = msg.get("channel", {}).get("alternatives", [{}])[0]
+            text = alt.get("transcript", "").strip()
             if not text:
                 return
 
-            if result.is_final:
+            is_final = msg.get("is_final", False)
+
+            if is_final:
                 latency_ms = (
                     (time.monotonic() - self._start_time) * 1000
                     if self._start_time
@@ -99,9 +95,3 @@ class DeepgramSTTClient:
                 self._on_partial(text)
         except Exception as exc:
             logger.error(f"STT transcript callback error: {exc}")
-
-    def _on_error(self, _self, error, **kwargs) -> None:
-        logger.error(f"Deepgram error: {error}")
-
-    def _on_close(self, _self, close, **kwargs) -> None:
-        logger.info("Deepgram connection closed by server")

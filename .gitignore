@@ -1,3 +1,4 @@
+venv/
 voiceflow_qdrant/
 qdrant_data/
 .env
