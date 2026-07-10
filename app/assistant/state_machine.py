@@ -149,9 +149,13 @@ class StateMachine:
         
         async def on_close(c, **kwargs):
             print(f"[Deepgram closed]")
+            if self.current_state == State.LISTENING:
+                self.transition_to(State.IDLE)
             
         async def on_error(c, error, **kwargs):
             print(f"[Deepgram error] {error}")
+            if self.current_state == State.LISTENING:
+                self.transition_to(State.IDLE)
             
         self.dg_conn.on(LiveTranscriptionEvents.Transcript, self.on_transcript)
         self.dg_conn.on(LiveTranscriptionEvents.Close, on_close)
@@ -164,7 +168,8 @@ class StateMachine:
             interim_results=True,
             smart_format=True,
             endpointing=150,  # 150ms endpointing for quick responses
-            utterance_end_ms=1000 # 1000ms max silence
+            utterance_end_ms=1000, # 1000ms max silence
+            keepalive="true"
         )
         
         await self.dg_conn.start(options)
@@ -288,7 +293,6 @@ class StateMachine:
                 # Go directly to LISTENING to capture the user's interruption
                 self.barge_in_triggered = False
                 self.transition_to(State.LISTENING)
-                import logging
                 task = asyncio.create_task(self.start_deepgram())
                 task.add_done_callback(lambda t: t.exception() and print(f"Task crashed: {t.exception()!r}"))
             else:
