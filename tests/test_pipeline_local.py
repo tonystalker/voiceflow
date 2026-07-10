@@ -50,7 +50,7 @@ _tts       = ElevenLabsTTSClient()
 _loop: asyncio.AbstractEventLoop | None = None
 _turn       = 0
 
-# _speaking: True while ARIA is playing audio.
+# _speaking: True while TONY is playing audio.
 # The mic callback checks this flag — if True it discards the frame,
 # implementing half-duplex (Bug 1 fix).  This also indirectly prevents
 # Deepgram from receiving echo and avoids silent drops (Bug 2).
@@ -101,7 +101,7 @@ async def _run_turn(text: str, stt_ms: float) -> None:
     response = final.get("llm_response", "Sorry, I could not process that.")
     llm_ms   = final.get("latency_log", {}).get("llm_ms", 0) or 0
 
-    print(f"\n[ARIA]  {response}")
+    print(f"\n[TONY]  {response}")
     print(f"        (LLM: {llm_ms:.0f} ms)")
 
     # Gate mic OFF before we start playing (Bug 1)

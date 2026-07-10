@@ -20,7 +20,7 @@ _TWIML_TEMPLATE = """\
 <Response>
   <Connect>
     <Stream url="wss://{host}/media-stream">
-      <Parameter name="greeting" value="Hello, thank you for calling VoiceBank. I am Aria, your AI banking assistant. How can I help you today?"/>
+      <Parameter name="greeting" value="Hello, thank you for calling VoiceBank. I am Tony, your AI banking assistant. How can I help you today?"/>
     </Stream>
   </Connect>
 </Response>

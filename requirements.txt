@@ -30,6 +30,10 @@ soundfile==0.12.1
 numpy==1.26.4
 # audioop is built into Python stdlib on 3.9–3.12; audioop-lts only needed on 3.13+
 
+# ── Wake word ────────────────────────────────────────────────────────────────────────────
+openwakeword>=0.6
+onnxruntime            # required runtime for openWakeWord inference
+
 # ── Dashboard ────────────────────────────────────────────────────────────────
 streamlit==1.35.0
 plotly==5.22.0
