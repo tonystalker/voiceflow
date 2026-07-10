@@ -63,11 +63,22 @@ def intent_classification_node(state: ConversationState) -> Dict[str, Any]:
     # Fast rule-based pre-check to save LLM call
     lower = transcript.lower()
     
+    if state.get("pending_action"):
+        if any(w in lower for w in ["yes", "yeah", "yep", "sure", "go ahead", "confirm", "place it", "do it"]):
+            return {"intent": "confirm_yes", "confirmed": True}
+        else:
+            return {"intent": "confirm_no", "confirmed": False}
+    
     # Check for "account" followed closely by 4 digits (e.g. "account is 1001", "account one zero zero one" converted to digits)
     has_acc = re.search(r"(?:acc|account).*?(\d{4})", lower)
     has_dis = re.search(r"(?:dis|dispute).*?(\d{4})", lower)
     
-    if has_acc:
+    food_keywords = ["order", "food", "biryani", "swiggy", "book", "table", "groceries", "chicken", "roll", "pizza", "burger", "buy"]
+    has_swiggy = any(w in lower for w in food_keywords) and not has_acc and not has_dis
+    
+    if has_swiggy:
+        intent = "action_intent"
+    elif has_acc:
         intent = "account_query"
     elif has_dis:
         intent = "dispute_query"
@@ -83,13 +94,14 @@ def intent_classification_node(state: ConversationState) -> Dict[str, Any]:
         )
         prompt = (
             f"Classify this banking support query into exactly one label.\n"
-            f"Labels: faq, account_query, dispute_query, escalate, out_of_scope\n"
+            f"Labels: action_intent, faq, account_query, dispute_query, escalate, out_of_scope\n"
+            f"Note: action_intent includes ordering food, groceries, booking tables, or Swiggy.\n"
             f"Query: {transcript}\n"
             f"Label:"
         )
         result = clf_llm.invoke([HumanMessage(content=prompt)])
         intent = result.content.strip().lower().split()[0]
-        if intent not in {"faq", "account_query", "dispute_query", "escalate", "out_of_scope"}:
+        if intent not in {"action_intent", "faq", "account_query", "dispute_query", "escalate", "out_of_scope"}:
             intent = "faq"  # default
 
     logger.info(f"[INTENT] '{transcript}' → {intent}")
@@ -127,6 +139,66 @@ def tool_calling_node(state: ConversationState) -> Dict[str, Any]:
 
     logger.info(f"[TOOL] result: {result[:80]}…")
     return {"tool_result": result}
+
+
+# ── Node 3.2: Confirmation Node ───────────────────────────────────────────
+def confirmation_node(state: ConversationState) -> Dict[str, Any]:
+    """Request confirmation from the user before taking a high-stakes action."""
+    transcript = state["transcript_final"]
+    logger.info(f"[CONFIRM] Requesting confirmation for action")
+    
+    # We ask for confirmation and set pending_action so the next turn expects a yes/no
+    msg = f"You want to use Swiggy for this request. Shall I go ahead and proceed?"
+    
+    return {
+        "llm_response": msg,
+        "pending_action": {"transcript": transcript},
+    }
+
+
+# ── Node 3.5: Swiggy Action Node ──────────────────────────────────────────
+async def swiggy_tool_node(state: ConversationState) -> Dict[str, Any]:
+    intent = state.get("intent")
+    transcript = state["transcript_final"]
+    
+    if intent == "confirm_yes":
+        instruction = "The user has confirmed the order. Check the active cart and place the order now."
+        next_pending = None
+    else:
+        instruction = f"User Request: {transcript}\n\nIMPORTANT: Do NOT place the order yet. Search for the items, add them to the cart, and then read back the items and the total price. Ask the user if they want to place the order.\nCRITICAL: When calling tools (e.g. search_restaurants), ensure numeric parameters like 'offset' are passed as raw JSON integers (e.g. 0), NOT strings (e.g. \"0\")."
+        next_pending = {"transcript": transcript}
+        
+    logger.info(f"[SWIGGY] Handling confirmed action: {intent}")
+    
+    from app.mcp.swiggy_client import get_swiggy_tools
+    from langgraph.prebuilt import create_react_agent
+    
+    # In a full system, you would cache this agent/tools or instantiate once.
+    # For now, we open the connection per action.
+    try:
+        async with get_swiggy_tools("food") as tools:
+            # Use a lighter model for tools to avoid Groq's 12k TPM limit on 70B models
+            from langchain_groq import ChatGroq
+            from app.config import settings
+            tool_llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=settings.groq_api_key, temperature=0.0)
+            
+            essential_tools = {"search_restaurants", "search_menu", "get_food_cart", "update_food_cart", "place_food_order", "confirm_order"}
+            filtered_tools = [t for t in tools if t.name in essential_tools]
+            
+            agent = create_react_agent(tool_llm, tools=filtered_tools)
+            
+            # execute
+            res = await agent.ainvoke({"messages": [("user", instruction)]})
+            result_text = res["messages"][-1].content
+            
+            return {"tool_result": result_text, "pending_action": next_pending}
+    except Exception as e:
+        import traceback
+        logger.error(f"[SWIGGY] Traceback:\n{traceback.format_exc()}")
+            
+        logger.error(f"[SWIGGY] Error: {e}")
+        return {"tool_result": f"Sorry, there was an error connecting to Swiggy: {str(e)}", "pending_action": None}
+
 
 
 # ── Node 4: Response Generation ───────────────────────────────────────────

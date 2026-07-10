@@ -9,3 +9,6 @@ __pycache__/
 logs/
 *.log
 .DS_Store
+
+venv_old/
+.swiggy_token_*

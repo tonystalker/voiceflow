@@ -178,3 +178,197 @@ If you're not streaming (i.e. waiting for full STT transcript, full LLM response
 - Swap mock tool for a real API integration (their CRM/booking system)
 - Add proper autoscaling/observability if call volume requires it
 - Multi-language support if relevant to their customer base
+
+v2 plan 
+
+# VoiceFlow AI → Personal Assistant — Implementation Plan v2
+
+Pivot from phone-based customer service agent to a local, always-on, wake-word-triggered
+personal assistant with real-world action capability (Swiggy: food, groceries, dining).
+
+This plan assumes the v1 pipeline already works: mic → Deepgram STT → LangGraph → RAG →
+LLM → ElevenLabs TTS → speaker, with dashboard, call logger, intent routing, fallback
+node, and mock tool calling all built and running locally.
+
+---
+
+## 1. What's Changing
+
+| | v1 (customer service) | v2 (personal assistant) |
+|---|---|---|
+| Trigger | Twilio inbound call | Local wake word ("Hey Aria") |
+| Channel | Phone (PSTN) | Mic/speaker on your machine |
+| Mode | Half-duplex, one call = one session | Always-on idle loop, repeated wake/sleep cycles |
+| Tools | Mock order-status lookup | Real-world actions via Swiggy MCP (order food, groceries, book table) |
+| Cost model | Twilio number + per-minute | $0 — wake word runs 100% local, cloud APIs only fire after wake |
+| Twilio/ngrok | Required | Parked — optional future feature ("call home") |
+
+---
+
+## 2. Updated Architecture
+
+```
+                    ┌────────────────────────────┐
+                    │   IDLE                      │
+                    │   Porcupine wake-word engine │  ← runs locally, no network calls,
+                    │   listening for "Hey Aria"   │     ~0 ongoing cost
+                    └──────────────┬──────────────┘
+                                   │ wake word detected
+                                   ▼
+                    ┌────────────────────────────┐
+                    │   LISTENING                 │
+                    │   Deepgram streaming STT     │  ← mic gated OFF during playback
+                    │   UtteranceEnd → turn end     │     (echo fix from v1 debugging)
+                    └──────────────┬──────────────┘
+                                   │ final transcript
+                                   ▼
+                    ┌────────────────────────────┐
+                    │   THINKING (LangGraph)       │
+                    │   Intent Classification       │
+                    │     ├─ faq        → RAG (Qdrant)
+                    │     ├─ order_status → mock tool
+                    │     └─ action_intent → Swiggy MCP tool node
+                    │            └─ CONFIRMATION NODE (required before
+                    │               any checkout/booking tool call fires)
+                    └──────────────┬──────────────┘
+                                   │ response text
+                                   ▼
+                    ┌────────────────────────────┐
+                    │   SPEAKING                   │
+                    │   ElevenLabs streaming TTS     │  ← play-as-chunks-arrive
+                    │   (barge-in listener active)    │     (v1 fix: don't buffer
+                    └──────────────┬──────────────┘        full response first)
+                                   │ done / interrupted
+                                   ▼
+                              back to IDLE
+```
+
+---
+
+## 3. Tech Stack Additions
+
+| Layer | Choice | Notes |
+|---|---|---|
+| Wake word | **Porcupine (Picovoice)** | Free personal-use tier, custom "Hey Aria" trainable in console, low CPU |
+| MCP client | **langchain-mcp-adapters** | Officially supported LangGraph integration path for MCP servers |
+| Action provider | **Swiggy MCP** (`food`, `instamart`, `dineout` servers) | OAuth 2.1 + PKCE, phone/OTP auth, free on localhost during dev |
+| Auth flow | One-time browser OAuth via setup script | Not per-call — this is personal use, token persists |
+
+Everything else (Deepgram, ElevenLabs, Groq, Qdrant, FastAPI, Streamlit) is unchanged from v1.
+
+---
+
+## 4. Repo Structure Additions
+
+```
+voiceflow-ai/
+├── app/
+│   ├── wakeword/
+│   │   └── porcupine_listener.py   # NEW — idle-loop wake detection
+│   ├── assistant/
+│   │   └── state_machine.py        # NEW — IDLE/LISTENING/THINKING/SPEAKING loop
+│   ├── mcp/
+│   │   ├── swiggy_client.py        # NEW — langchain-mcp-adapters wrapper
+│   │   └── setup_auth.py           # NEW — one-time OAuth browser flow, saves token
+│   ├── agent/
+│   │   ├── graph.py                # UPDATED — add action_intent branch
+│   │   ├── nodes.py                # UPDATED — add confirmation_node
+│   │   └── state.py                # UPDATED — add pending_action / confirmed fields
+├── main.py                         # NEW — replaces test_pipeline_local.py as entrypoint
+```
+
+---
+
+## 5. Phased Build Plan
+
+### Phase A: Wake-word idle loop
+- `pip install pvporcupine pvrecorder`
+- Get free Picovoice access key, train/select "Hey Aria" wake word in console
+- `porcupine_listener.py`: standalone script, prints "wake word detected!" — verify in isolation before touching the pipeline
+- Exit criteria: reliably detects wake word across a room, near-zero false positives during normal speech
+
+### Phase B: State machine refactor
+- Wrap your existing mic→STT→LangGraph→TTS→speaker loop (from `test_pipeline_local.py`) inside the IDLE/LISTENING/THINKING/SPEAKING state machine
+- IDLE: only Porcupine running, everything else dormant (no Deepgram connection open, no API cost)
+- On wake: open Deepgram connection, transition to LISTENING
+- Reuse the mic-gating fix (don't capture mic during SPEAKING) and `UtteranceEnd`-based turn detection from v1 debugging — carry those fixes forward, don't regress
+- Exit criteria: say "Hey Aria," ask a question, get a spoken answer, system returns to idle listening for the wake word again
+
+### Phase C: Swiggy MCP integration (build/test as text first, before wiring into voice)
+- Read Swiggy MCP developer quickstart, run steps 1–5 locally (free, no production access needed yet)
+- `setup_auth.py`: one-time script, opens browser OAuth+PKCE flow, phone/OTP, saves session token locally
+- `swiggy_client.py`: load Swiggy's MCP tools via `langchain-mcp-adapters`, bind to your existing LLM node the same way as any other tool
+- Add `action_intent` branch to intent classification node
+- Test with a text-only harness first (skip mic/TTS) — validate `search_restaurants` → `get_addresses` → order flow works end-to-end via the LLM before adding voice on top
+- Exit criteria: via text input, agent can search a restaurant, pick an item, and reach the checkout step (not yet placing real orders)
+
+### Phase D: Confirmation node (safety-critical, do not skip)
+- New LangGraph node: sits between "user requested an action" and "tool actually executes"
+- Reads back the concrete action in plain language ("2 butter naan and dal makhani from X, ₹340, COD — should I place it?")
+- Requires an unambiguous affirmative before the checkout/booking tool call fires
+- Any ambiguity ("uh maybe," silence, unclear response) → do NOT execute, ask again or abandon
+- Exit criteria: agent never places a real order without an explicit yes; test with an intentionally ambiguous response to confirm it does NOT proceed
+
+### Phase E: Real barge-in
+- Currently half-duplex (mic gated off during SPEAKING) — upgrade to true interrupt
+- While SPEAKING: keep a lightweight VAD (voice activity detector) listening in parallel; if user speech is detected, immediately stop TTS playback and transition to LISTENING
+- This matters more here than it did for the phone-call version — a wake-word assistant that can't be interrupted mid-sentence feels broken fast
+- Exit criteria: interrupt the agent mid-response, it stops talking within ~300ms and starts listening
+
+### Phase F: Deepgram endpointing tuning
+- Set `endpointing: 300`, `utterance_end_ms: "1000"`, `vad_events: True` (carried over from v1 fix)
+- Confirms STT wait drops from the earlier 10s+ readings to a true 1–2s
+- Exit criteria: "STT latency" measured correctly (from last audio chunk sent → final transcript), not from mic-reopen to final
+
+### Phase G: Polish + demo
+- Streamlit dashboard: extend to show assistant sessions (not "calls") — wake events, intents handled, actions taken/confirmed
+- Record a 60–90s demo: wake word → ask an FAQ → order food end-to-end (with confirmation) → interrupt it mid-sentence to show barge-in
+- README: reframe from "answers FAQs, routes to human" → "personal assistant that takes real-world actions, with explicit confirmation before spending money" — this is a stronger signal for founder outreach than a pure FAQ bot
+
+---
+
+## 6. Fixes Carried Forward From v1 Debugging (don't regress these)
+
+1. **Mic gating during playback** — `_mic_callback` must not enqueue audio while `_busy`/SPEAKING is true, or Deepgram transcribes your own TTS output as user speech
+2. **`UtteranceEnd`-based turn detection**, not raw `is_final` — Deepgram finalizes fragments mid-sentence; only `UtteranceEnd` (or `speech_final`) means the user actually stopped talking
+3. **Streaming TTS playback** — play audio chunks as they arrive, don't buffer the full response before calling `sd.play()`; the old pattern hides real latency behind a misleading "first chunk" timestamp
+4. **Latency measurement** — measure STT latency from last-audio-sent to final-transcript-received, not from mic-reopen (which includes think-time)
+
+---
+
+## 7. References
+
+**Wake word**
+- Porcupine (Picovoice): https://picovoice.ai/platform/porcupine/
+- openWakeWord (fully open-source alternative): https://github.com/dscripka/openWakeWord
+
+**STT**
+- Deepgram streaming/live docs: https://developers.deepgram.com/docs/live-streaming-audio
+- Deepgram endpointing & UtteranceEnd: https://developers.deepgram.com/docs/endpointing
+- Deepgram Python SDK (v3+, recommended over the deprecated v2 client): https://github.com/deepgram/deepgram-python-sdk
+
+**TTS**
+- ElevenLabs streaming API: https://elevenlabs.io/docs/api-reference/streaming
+
+**LLM**
+- Groq API docs: https://console.groq.com/docs
+
+**Orchestration / MCP**
+- LangGraph docs: https://langchain-ai.github.io/langgraph/
+- langchain-mcp-adapters: https://github.com/langchain-ai/langchain-mcp-adapters
+- Model Context Protocol spec: https://modelcontextprotocol.io/
+
+**Swiggy MCP**
+- Developer quickstart: https://mcp.swiggy.com/builders/docs/start/developer/
+
+**Vector DB**
+- Qdrant docs: https://qdrant.tech/documentation/
+
+---
+
+## 8. What to Still Skip for v2 (don't overbuild)
+
+- No Kubernetes/autoscaling — this runs on your machine
+- No multi-user auth — single personal token via one-time OAuth setup
+- No React frontend — Streamlit remains sufficient
+- Twilio/phone access stays parked — revisit only if "call home" becomes a demo priority

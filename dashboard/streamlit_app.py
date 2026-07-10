@@ -133,6 +133,9 @@ with left:
         "faq": "#10b981",
         "account_query": "#3b82f6",
         "dispute_query": "#f59e0b",
+        "action_intent": "#8b5cf6",
+        "confirm_yes": "#22c55e",
+        "confirm_no": "#ef4444",
         "escalate": "#ef4444",
         "out_of_scope": "#6b7280",
     }
@@ -149,7 +152,7 @@ with left:
                 <span style="background:{color};color:#fff;padding:2px 8px;border-radius:20px;font-size:0.72rem">{intent}</span>
               </div>
               <div style="color:#cdd6f4"><b>👤 Caller:</b> {row.get('transcript','')}</div>
-              <div style="color:#a6e3a1;margin-top:6px"><b>🤖 Aria:</b> {row.get('response','')}</div>
+              <div style="color:#a6e3a1;margin-top:6px"><b>🤖 Tony:</b> {row.get('response','')}</div>
             </div>
             """,
             unsafe_allow_html=True,

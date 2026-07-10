@@ -32,6 +32,8 @@ class ConversationState(TypedDict):
 
     # ── Tool outputs ──────────────────────────────────────────────────────
     tool_result: Optional[str]          # Stringified result from a tool call
+    pending_action: Optional[dict]      # structured action before confirmation
+    confirmed: Optional[bool]           # True = user said yes; False = abort
 
     # ── Control flags ─────────────────────────────────────────────────────
     escalate_flag: bool                 # True → trigger fallback/human handoff

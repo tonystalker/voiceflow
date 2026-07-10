@@ -1,39 +1,37 @@
-# 🎙️ VoiceFlow AI
+# 🎙️ VoiceFlow AI (Tony)
 
-> Real-time AI voice agent for automated banking support calls — built from first principles without Vapi or LiveKit.
+> Real-time AI voice assistant for automated food ordering — built 100% locally with wake-word detection and MCP tool integration.
 
-**Stack:** Twilio · Deepgram · ElevenLabs · LangGraph · Groq · Qdrant · FastAPI · Streamlit
+**Stack:** openWakeWord · Deepgram · ElevenLabs · LangGraph · Groq · MCP (Swiggy) · FastAPI · Streamlit
 
 ---
 
 ## Architecture
 
 ```
-Caller (phone)
-    │  PSTN/SIP
-    ▼
-Twilio ── Media Stream (WebSocket, μ-law 8kHz audio)
+Caller (Microphone)
     │
     ▼
-FastAPI WebSocket Handler  (Real-Time Media Server)
-    │
-    ├──► Deepgram (streaming STT) ──► partial + final transcripts
+openWakeWord ("Hey Jarvis") ──► Triggers LISTENING state
     │
     ▼
-LangGraph Agent Orchestrator
-    ├─ Intent Classification Node   (Groq, fast classify → faq/account/dispute/escalate)
-    ├─ RAG Retrieval Node           (Qdrant — 20-item fintech FAQ knowledge base)
-    ├─ Tool Calling Node            (mock account status + dispute lookup)
+Deepgram (streaming STT v3) ──► partial + final transcripts
+    │
+    ▼
+LangGraph Agent Orchestrator (Tony)
+    ├─ Intent Classification Node   (Groq, fast classify → action_intent/faq/etc)
+    ├─ Confirmation Node            (Requires explicit confirmation for actions)
+    ├─ Swiggy MCP Tool Node         (Model Context Protocol integration for food ordering)
     ├─ Response Generation Node     (Groq Llama 3.3 70B, streaming)
-    └─ Fallback/Escalation Node     (low confidence → graceful handoff)
+    └─ Fallback/Escalation Node     (graceful handoff)
     │
     ▼
 ElevenLabs (streaming TTS) ──► μ-law audio chunks
     │
     ▼
-Twilio Media Stream ──► Caller hears response
+Speaker ──► Caller hears response
 
-Cross-cutting: Barge-in (interrupt TTS if caller speaks mid-response)
+Cross-cutting: Barge-in (webrtcvad interrupts TTS if caller speaks mid-response)
 Cross-cutting: Structured logging → Streamlit dashboard
 ```
 
@@ -44,11 +42,10 @@ Cross-cutting: Structured logging → Streamlit dashboard
 | Feature | Implementation |
 |---|---|
 | **Streaming at every stage** | Deepgram `interim_results`, Groq `stream=True`, ElevenLabs `/stream` endpoint — no stage buffers the full response |
-| **Barge-in interruption** | Deepgram partial transcript fires `tts.stop()` mid-stream; caller can interrupt Aria at any time |
-| **Confidence-gated fallback** | RAG cosine score < 0.50 → routes to fallback node instead of hallucinating |
-| **Per-stage latency logging** | STT / LLM / TTS / total all logged per turn; viewable in dashboard |
-| **Structured turn logs** | JSON-lines log per turn: call SID, transcript, intent, response, latency, escalation flag |
-| **Graceful escalation** | Low-confidence or explicit "speak to agent" → clean handoff line, not a confused response |
+| **Real Barge-in** | webrtcvad actively monitors the microphone during TTS playback and stops the stream immediately when speech is detected. |
+| **Model Context Protocol (MCP)** | Fully integrated with LangChain MCP Adapters to interact with the Swiggy API, utilizing OAuth PKCE for secure authentication. |
+| **Action Confirmation** | Graph state machine ensures the agent pauses and asks for explicit confirmation ("Shall I go ahead?") before executing real-world tool actions. |
+| **Structured turn logs** | JSON-lines log per turn: transcript, intent, response, latency |
 
 **Latency budget (target):**
 
@@ -87,24 +84,19 @@ cp .env.example .env
 pip install -r requirements.txt
 ```
 
-### 4. Start Qdrant
+### 4. Swiggy Auth
 
 ```bash
-docker compose up -d
+uv run -m app.mcp.setup_auth
+# Output: Will open a browser window to authenticate with Swiggy
 ```
 
-### 5. Ingest the knowledge base
+### 5. Run the Local Assistant
 
 ```bash
-python -m app.rag.ingest
-# Output: Ingested 20 FAQ items into Qdrant ✓
-```
-
-### 6. Day 1–2: Local pipeline test (no phone needed)
-
-```bash
-python tests/test_pipeline_local.py
-# Speak into your mic → hear Aria respond → latency printed per stage
+uv run main.py
+# Speak "Hey Jarvis" into your mic to wake Tony up.
+# Try saying: "Can you order some biryani from a nearby restaurant?"
 ```
 
 ### 7. Day 3+: Full Twilio integration

@@ -44,6 +44,10 @@ from app.agent.nodes import (
 
 def _route_intent(state: ConversationState) -> str:
     intent = state.get("intent", "out_of_scope")
+    if intent in ("action_intent", "confirm_yes"):
+        return "swiggy_tool"
+    if intent == "confirm_no":
+        return "fallback"
     if intent in ("account_query", "dispute_query"):
         return "tool"
     if intent in ("escalate", "out_of_scope"):
@@ -60,10 +64,13 @@ def _route_rag(state: ConversationState) -> str:
 def build_graph() -> StateGraph:
     builder = StateGraph(ConversationState)
 
+    from app.agent.nodes import swiggy_tool_node
+
     # ── Add nodes ─────────────────────────────────────────────────────────
     builder.add_node("classify", intent_classification_node)  # renamed: 'intent' conflicts with state key
     builder.add_node("rag", rag_retrieval_node)
     builder.add_node("tool", tool_calling_node)
+    builder.add_node("swiggy_tool", swiggy_tool_node)
     builder.add_node("generate", response_generation_node)
     builder.add_node("fallback", fallback_node)
 
@@ -74,7 +81,7 @@ def build_graph() -> StateGraph:
     builder.add_conditional_edges(
         "classify",
         _route_intent,
-        {"rag": "rag", "tool": "tool", "fallback": "fallback"},
+        {"rag": "rag", "tool": "tool", "swiggy_tool": "swiggy_tool", "fallback": "fallback"},
     )
     builder.add_conditional_edges(
         "rag",
@@ -82,6 +89,7 @@ def build_graph() -> StateGraph:
         {"fallback": "fallback", "generate": "generate"},
     )
     builder.add_edge("tool", "generate")
+    builder.add_edge("swiggy_tool", "generate")
     builder.add_edge("generate", END)
     builder.add_edge("fallback", END)
 

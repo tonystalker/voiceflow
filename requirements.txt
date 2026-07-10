@@ -15,19 +15,19 @@ deepgram-sdk==2.12.0     # v2 for Python 3.9 compat (v3 requires Python 3.10+)
 elevenlabs==1.2.2
 
 # ── LLM / Agent ──────────────────────────────────────────────────────────────
-langchain==0.2.5
-langchain-groq==0.1.6
-langchain-community==0.2.5
-langgraph==0.1.14
+langchain>=0.3.0
+langchain-groq>=0.2.0
+langchain-community>=0.3.0
+langgraph>=0.2.0
 
 # ── Vector DB / RAG ──────────────────────────────────────────────────────────
-qdrant-client==1.9.1
-sentence-transformers==3.0.1
+# qdrant-client>=1.9.1 (Disabled due to protobuf conflict on Python 3.13)
+# sentence-transformers>=3.0.1
 
 # ── Audio (local test only) ───────────────────────────────────────────────────
 sounddevice==0.4.7
 soundfile==0.12.1
-numpy==1.26.4
+numpy>=1.26.4
 # audioop is built into Python stdlib on 3.9–3.12; audioop-lts only needed on 3.13+
 
 # ── Wake word ────────────────────────────────────────────────────────────────────────────
@@ -35,11 +35,29 @@ openwakeword>=0.6
 onnxruntime            # required runtime for openWakeWord inference
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
-streamlit==1.35.0
+streamlit>=1.35.0
 plotly==5.22.0
 
 # ── Utilities ────────────────────────────────────────────────────────────────
 python-dotenv==1.0.1
-pydantic==2.7.4
-pydantic-settings==2.3.4
+pydantic>=2.7.4
+pydantic-settings>=2.4.0
 loguru==0.7.2
+
+# MCP / Swiggy
+langchain-mcp-adapters>=0.1
+mcp>=1.0,<2
+
+
+audioop-lts
+
+
+
+
+
+
+
+
+
+
+webrtcvad-wheels
